@@ -1,4 +1,4 @@
-// server.js — Serveur EduManager (Node.js + MySQL)
+// server.js — EduManager Backend (CORS corrigé)
 
 require('dotenv').config();
 const express   = require('express');
@@ -16,18 +16,28 @@ const app = express();
 // ── Sécurité ──────────────────────────────────────────
 app.use(helmet());
 
-// ── CORS ──────────────────────────────────────────────
+// ── CORS — Autoriser Vercel + Netlify + localhost ─────
+const allowedOrigins = [
+  'https://edumanager-frontends.vercel.app',
+  'https://inquisitive-dodol-a8c7e6.netlify.app',
+];
+
 app.use(cors({
-  origin: [
-    process.env.FRONTEND_URL,
-    'http://127.0.0.1:5500',
-    'http://localhost:5500',
-    'http://localhost:3000',
-  ].filter(Boolean),
+  origin: function(origin, callback) {
+    // Autoriser les requêtes sans origin (Postman, mobile)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('Non autorisé par CORS : ' + origin));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
+
+// Répondre aux requêtes OPTIONS (preflight)
+app.options('*', cors());
 
 // ── Rate Limiting ─────────────────────────────────────
 app.use('/api/', rateLimit({
@@ -49,7 +59,7 @@ app.use(express.urlencoded({ extended: true }));
 // ── Logger ────────────────────────────────────────────
 if (process.env.NODE_ENV === 'development') app.use(morgan('dev'));
 
-// ── Routes ────────────────────────────────────────────
+// ── Routes API ────────────────────────────────────────
 app.use('/api/auth',          require('./routes/auth'));
 app.use('/api/users',         require('./routes/users'));
 app.use('/api/students',      require('./routes/students'));
@@ -64,25 +74,32 @@ app.use('/api/dashboard',     require('./routes/dashboard'));
 // ── Route santé ───────────────────────────────────────
 app.get('/api/health', (req, res) => {
   res.json({
-    success: true,
-    message: '🚀 EduManager API opérationnelle',
-    database: 'MySQL',
-    version: '2.0.0',
+    success:   true,
+    message:   '🚀 EduManager API opérationnelle',
+    database:  'MySQL',
+    version:   '2.0.0',
+    timestamp: new Date().toISOString(),
   });
 });
 
 // ── 404 ───────────────────────────────────────────────
 app.use('*', (req, res) => {
-  res.status(404).json({ success: false, message: `Route ${req.originalUrl} introuvable.` });
+  res.status(404).json({
+    success: false,
+    message: 'Route ' + req.originalUrl + ' introuvable.',
+  });
 });
 
-// ── Gestion des erreurs ───────────────────────────────
+// ── Gestion globale des erreurs ───────────────────────
 app.use((err, req, res, next) => {
-  console.error('Erreur :', err.message);
+  console.error('Erreur serveur :', err.message);
 
-  // Erreur MySQL doublon
   if (err.code === 'ER_DUP_ENTRY') {
     return res.status(400).json({ success: false, message: 'Cette valeur existe déjà.' });
+  }
+
+  if (err.message && err.message.includes('CORS')) {
+    return res.status(403).json({ success: false, message: 'Accès non autorisé (CORS).' });
   }
 
   res.status(err.statusCode || 500).json({
@@ -101,3 +118,4 @@ app.listen(PORT, () => {
 });
 
 module.exports = app;
+         
