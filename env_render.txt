@@ -1,0 +1,22 @@
+# =============================================
+#  EduManager — Variables d'environnement
+#  À copier dans Render → Environment Variables
+# =============================================
+
+# MySQL Railway
+DB_HOST=trolley.proxy.rlwy.net
+DB_PORT=19009
+DB_USER=root
+DB_PASSWORD=kPuFxgpMQubQNxVviWAccwfoHOmLUARc
+DB_NAME=railway
+
+# JWT
+JWT_SECRET=edumanager_jwt_secret_2024_tres_longue_cle_securisee
+JWT_EXPIRE=7d
+
+# Serveur
+PORT=5000
+NODE_ENV=production
+
+# Frontend Netlify (pour CORS)
+FRONTEND_URL=https://inquisitive-dodol-a8c7e6.netlify.app
