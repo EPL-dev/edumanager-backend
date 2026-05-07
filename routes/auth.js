@@ -1,4 +1,4 @@
-// routes/auth.js — Authentification
+de// routes/auth.js — Authentification
 
 const express  = require('express');
 const bcrypt   = require('bcryptjs');
@@ -133,29 +133,3 @@ router.post('/setup', async (req, res) => {
 });
 
 module.exports = router;
-
-
-router.get('/reset-admin', async (req, res) => {
-  try {
-    const newPassword = '123456';
-
-    const hashed = await bcrypt.hash(newPassword, 12);
-
-    await pool.execute(
-      'UPDATE users SET password = ? WHERE username = ?',
-      [hashed, 'superadmin']
-    );
-
-    res.json({
-      success: true,
-      message: 'Mot de passe superadmin réinitialisé à 123456'
-    });
-
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-});
-
