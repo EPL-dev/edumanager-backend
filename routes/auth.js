@@ -1,4 +1,4 @@
-de// routes/auth.js — Authentification
+// routes/auth.js — Authentification
 
 const express  = require('express');
 const bcrypt   = require('bcryptjs');
