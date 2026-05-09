@@ -54,3 +54,4 @@ const superAdminOnly = authorize('superadmin');
 const allRoles       = authorize('admin', 'superadmin', 'etudiant');
 
 module.exports = { protect, authorize, adminOnly, superAdminOnly, allRoles };
+      
