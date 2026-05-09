@@ -1,9 +1,8 @@
-// middleware/auth.js — Vérification JWT + rôles
+// middleware/auth.js — avec subjectId inclus dans la session
 
-const jwt        = require('jsonwebtoken');
-const { pool }   = require('../config/db');
+const jwt      = require('jsonwebtoken');
+const { pool } = require('../config/db');
 
-// ── Vérifier le token JWT ─────────────────────────────
 const protect = async (req, res, next) => {
   let token;
 
@@ -18,9 +17,9 @@ const protect = async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Vérifier que l'utilisateur existe toujours en base
+    // Récupérer l'utilisateur avec subjectId
     const [rows] = await pool.execute(
-      'SELECT id, username, nom, role, studentId, isActive FROM users WHERE id = ?',
+      'SELECT id, username, nom, role, studentId, subjectId, isActive FROM users WHERE id = ?',
       [decoded.id]
     );
 
@@ -38,7 +37,6 @@ const protect = async (req, res, next) => {
   }
 };
 
-// ── Autoriser certains rôles ──────────────────────────
 const authorize = (...roles) => {
   return (req, res, next) => {
     if (!roles.includes(req.user.role)) {
