@@ -1,4 +1,4 @@
-// routes/users.js — Gestion des comptes (superadmin)
+// routes/users.js — avec gestion subjectId pour admins
 
 const express  = require('express');
 const bcrypt   = require('bcryptjs');
@@ -12,21 +12,27 @@ router.use(protect, superAdminOnly);
 router.get('/', async (req, res) => {
   try {
     const [users] = await pool.execute(
-      `SELECT u.id, u.username, u.nom, u.email, u.role, u.studentId,
+      `SELECT u.id, u.username, u.nom, u.email, u.role,
+              u.studentId, u.subjectId,
               s.nom as studentNom, s.prenom as studentPrenom,
+              m.name as subjectName,
               u.isActive, u.createdAt
        FROM users u
        LEFT JOIN students s ON u.studentId = s.id
+       LEFT JOIN subjects m ON u.subjectId = m.id
        ORDER BY u.createdAt DESC`
     );
     res.json({ success: true, users });
-  } catch (e) { res.status(500).json({ success: false, message: 'Erreur serveur.' }); }
+  } catch (e) {
+    res.status(500).json({ success: false, message: 'Erreur serveur.' });
+  }
 });
 
 // POST /api/users
 router.post('/', async (req, res) => {
   try {
-    const { username, password, nom, email, role, studentId } = req.body;
+    const { username, password, nom, email, role, studentId, subjectId } = req.body;
+
     if (!username || !password || !nom) {
       return res.status(400).json({ success: false, message: 'Identifiant, mot de passe et nom requis.' });
     }
@@ -36,13 +42,24 @@ router.post('/', async (req, res) => {
 
     const hashed = await bcrypt.hash(password, 12);
     const [result] = await pool.execute(
-      'INSERT INTO users (username, password, nom, email, role, studentId) VALUES (?, ?, ?, ?, ?, ?)',
-      [username.trim(), hashed, nom, email || '', role || 'etudiant', studentId || null]
+      'INSERT INTO users (username, password, nom, email, role, studentId, subjectId) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [
+        username.trim(),
+        hashed,
+        nom,
+        email || '',
+        role || 'etudiant',
+        studentId || null,
+        // subjectId seulement pour les admins
+        (role === 'admin' ? subjectId || null : null),
+      ]
     );
 
     res.status(201).json({ success: true, message: 'Compte créé ✅', id: result.insertId });
   } catch (e) {
-    if (e.code === 'ER_DUP_ENTRY') return res.status(400).json({ success: false, message: 'Identifiant déjà utilisé.' });
+    if (e.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ success: false, message: 'Identifiant déjà utilisé.' });
+    }
     res.status(500).json({ success: false, message: e.message });
   }
 });
@@ -50,14 +67,21 @@ router.post('/', async (req, res) => {
 // PUT /api/users/:id
 router.put('/:id', async (req, res) => {
   try {
-    const { id } = req.params;
-    if (parseInt(id) === req.user.id) {
-      return res.status(400).json({ success: false, message: 'Vous ne pouvez pas modifier votre propre compte ici.' });
+    if (parseInt(req.params.id) === req.user.id) {
+      return res.status(400).json({ success: false, message: 'Modifiez votre compte depuis votre profil.' });
     }
 
-    const { nom, email, role, password, studentId, isActive } = req.body;
-    let query = 'UPDATE users SET nom=?, email=?, role=?, studentId=?, isActive=?';
-    let params = [nom, email || '', role, studentId || null, isActive !== undefined ? isActive : 1];
+    const { nom, email, role, password, studentId, subjectId, isActive } = req.body;
+
+    let query  = 'UPDATE users SET nom=?, email=?, role=?, studentId=?, subjectId=?, isActive=?';
+    let params = [
+      nom,
+      email || '',
+      role,
+      studentId || null,
+      role === 'admin' ? subjectId || null : null,
+      isActive !== undefined ? isActive : 1,
+    ];
 
     if (password && password.length >= 4) {
       const hashed = await bcrypt.hash(password, 12);
@@ -66,23 +90,27 @@ router.put('/:id', async (req, res) => {
     }
 
     query += ' WHERE id=?';
-    params.push(id);
+    params.push(req.params.id);
 
     await pool.execute(query, params);
     res.json({ success: true, message: 'Compte modifié ✅' });
-  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
 });
 
 // DELETE /api/users/:id
 router.delete('/:id', async (req, res) => {
   try {
-    const { id } = req.params;
-    if (parseInt(id) === req.user.id) {
+    if (parseInt(req.params.id) === req.user.id) {
       return res.status(400).json({ success: false, message: 'Impossible de supprimer votre propre compte.' });
     }
-    await pool.execute('DELETE FROM users WHERE id = ?', [id]);
+    await pool.execute('DELETE FROM users WHERE id = ?', [req.params.id]);
     res.json({ success: true, message: 'Compte supprimé.' });
-  } catch (e) { res.status(500).json({ success: false, message: 'Erreur serveur.' }); }
+  } catch (e) {
+    res.status(500).json({ success: false, message: 'Erreur serveur.' });
+  }
 });
 
 module.exports = router;
+    
