@@ -45,14 +45,14 @@ router.post('/login', async (req, res) => {
       success: true,
       token,
       user: {
-        id:        user.id,
-        username:  user.username,
-        nom:       user.nom,
-        role:      user.role,
-        studentId: user.studentId,
+  id:        user.id,
+  username:  user.username,
+  nom:       user.nom,
+  role:      user.role,
+  studentId: user.studentId,
+  subjectId: user.subjectId,  // ← AJOUTER CETTE LIGNE
       },
-    });
-
+    }); 
   } catch (error) {
     console.error('Erreur login:', error);
     res.status(500).json({ success: false, message: 'Erreur serveur.' });
