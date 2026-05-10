@@ -1,4 +1,4 @@
-// middleware/auth.js — avec subjectId inclus dans la session
+// middleware/auth.js — Version stable
 
 const jwt      = require('jsonwebtoken');
 const { pool } = require('../config/db');
@@ -17,18 +17,18 @@ const protect = async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Récupérer l'utilisateur avec subjectId
     const [rows] = await pool.execute(
       'SELECT id, username, nom, role, studentId, subjectId, isActive FROM users WHERE id = ?',
       [decoded.id]
     );
 
     if (!rows.length || !rows[0].isActive) {
-      return res.status(401).json({ success: false, message: 'Utilisateur introuvable ou désactivé.' });
+      return res.status(401).json({ success: false, message: 'Utilisateur introuvable.' });
     }
 
     req.user = rows[0];
     next();
+
   } catch (error) {
     if (error.name === 'TokenExpiredError') {
       return res.status(401).json({ success: false, message: 'Session expirée. Reconnectez-vous.' });
@@ -40,10 +40,7 @@ const protect = async (req, res, next) => {
 const authorize = (...roles) => {
   return (req, res, next) => {
     if (!roles.includes(req.user.role)) {
-      return res.status(403).json({
-        success: false,
-        message: 'Accès refusé. Rôle insuffisant.',
-      });
+      return res.status(403).json({ success: false, message: 'Accès refusé. Rôle insuffisant.' });
     }
     next();
   };
@@ -54,4 +51,4 @@ const superAdminOnly = authorize('superadmin');
 const allRoles       = authorize('admin', 'superadmin', 'etudiant');
 
 module.exports = { protect, authorize, adminOnly, superAdminOnly, allRoles };
-      
+        
